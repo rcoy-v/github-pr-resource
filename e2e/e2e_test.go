@@ -5,7 +5,7 @@ package e2e_test
 import (
 	"context"
 	"fmt"
-	github2 "github.com/google/go-github/github"
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
@@ -176,11 +176,11 @@ func TestCheckE2E(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.description, func(t *testing.T) {
-			github, err := resource.NewGithubClient(&tc.source)
+			githubClient, err := resource.NewGithubClient(&tc.source)
 			require.NoError(t, err)
 
 			input := resource.CheckRequest{Source: tc.source, Version: tc.version}
-			output, err := resource.Check(input, github)
+			output, err := resource.Check(input, githubClient)
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expected, output)
@@ -384,7 +384,7 @@ func TestGetAndPutE2E(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			github, err := resource.NewGithubClient(&tc.source)
+			githubClient, err := resource.NewGithubClient(&tc.source)
 			require.NoError(t, err)
 
 			git, err := resource.NewGitClient(&tc.source, dir, ioutil.Discard)
@@ -392,7 +392,7 @@ func TestGetAndPutE2E(t *testing.T) {
 
 			// Get (output and files)
 			getRequest := resource.GetRequest{Source: tc.source, Version: tc.version, Params: tc.getParameters}
-			getOutput, err := resource.Get(getRequest, github, git, dir)
+			getOutput, err := resource.Get(getRequest, githubClient, git, dir)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.version, getOutput.Version)
@@ -427,7 +427,7 @@ func TestGetAndPutE2E(t *testing.T) {
 
 			// Put
 			putRequest := resource.PutRequest{Source: tc.source, Params: tc.putParameters}
-			putOutput, err := resource.Put(putRequest, github, dir)
+			putOutput, err := resource.Put(putRequest, githubClient, dir)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.version, putOutput.Version)
@@ -509,22 +509,22 @@ func TestPutCommentsE2E(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			github, err := resource.NewGithubClient(&tc.source)
+			githubClient, err := resource.NewGithubClient(&tc.source)
 			require.NoError(t, err)
 
 			git, err := resource.NewGitClient(&tc.source, dir, ioutil.Discard)
 			require.NoError(t, err)
 
-			pullRequest, _, err := github.V3.PullRequests.Create(context.TODO(), owner, repo, &github2.NewPullRequest{
-				Title: github2.String(tc.description),
-				Base:  github2.String("master"),
-				Head:  github2.String(fmt.Sprintf("%s:%s", owner, tc.branch)),
+			pullRequest, _, err := githubClient.V3.PullRequests.Create(context.TODO(), owner, repo, &github.NewPullRequest{
+				Title: github.String(tc.description),
+				Base:  github.String("master"),
+				Head:  github.String(fmt.Sprintf("%s:%s", owner, tc.branch)),
 			})
 			require.NoError(t, err)
 
 			for _, comment := range tc.previousComments {
-				_, _, err = github.V3.Issues.CreateComment(context.TODO(), owner, repo, pullRequest.GetNumber(), &github2.IssueComment{
-					Body: github2.String(comment),
+				_, _, err = githubClient.V3.Issues.CreateComment(context.TODO(), owner, repo, pullRequest.GetNumber(), &github.IssueComment{
+					Body: github.String(comment),
 				})
 				require.NoError(t, err)
 			}
@@ -533,7 +533,7 @@ func TestPutCommentsE2E(t *testing.T) {
 				PR:     strconv.Itoa(pullRequest.GetNumber()),
 				Commit: pullRequest.GetHead().GetSHA(),
 			}, Params: tc.getParams}
-			_, err = resource.Get(getRequest, github, git, dir)
+			_, err = resource.Get(getRequest, githubClient, git, dir)
 			require.NoError(t, err)
 
 			putRequest := resource.PutRequest{
@@ -541,10 +541,10 @@ func TestPutCommentsE2E(t *testing.T) {
 				Params: tc.putParameters,
 			}
 
-			_, err = resource.Put(putRequest, github, dir)
+			_, err = resource.Put(putRequest, githubClient, dir)
 			require.NoError(t, err)
 
-			comments, _, err := github.V3.Issues.ListComments(context.TODO(), owner, repo, pullRequest.GetNumber(), nil)
+			comments, _, err := githubClient.V3.Issues.ListComments(context.TODO(), owner, repo, pullRequest.GetNumber(), nil)
 			require.NoError(t, err)
 
 			require.Len(t, comments, len(tc.expectedComments))
@@ -552,8 +552,8 @@ func TestPutCommentsE2E(t *testing.T) {
 				require.Equal(t, tc.expectedComments[index], comment.GetBody())
 			}
 
-			_, _, err = github.V3.PullRequests.Edit(context.TODO(), owner, repo, pullRequest.GetNumber(), &github2.PullRequest{
-				State: github2.String("closed"),
+			_, _, err = githubClient.V3.PullRequests.Edit(context.TODO(), owner, repo, pullRequest.GetNumber(), &github.PullRequest{
+				State: github.String("closed"),
 			})
 			require.NoError(t, err)
 		})
